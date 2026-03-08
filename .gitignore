@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 环境变量
+.env
+.env.local
+secrets.json
+
+# 数据文件
+data/*.json
+!data/.gitkeep
+
+# 报告输出
+reports/*.md
+reports/pdf/*.pdf
+!reports/.gitkeep
+
+# Logs
+*.log
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node (如果有用到)
+node_modules/
+package-lock.json

@@ -1,0 +1,114 @@
+name: 竞品分析报告生成
+
+on:
+  schedule:
+    # 每月最后一天 18:00 (北京时间) 执行
+    # 会每天检查，在28-31号的10:00触发
+    - cron: '0 10 28-31 * *'
+  
+  workflow_dispatch:
+    inputs:
+      month:
+        description: '目标月份 (YYYY-MM)'
+        required: false
+        default: ''
+      competitors:
+        description: '竞品列表 (逗号分隔)'
+        required: false
+        default: 'Keep,Strava,Garmin Connect,Zwift,MyWhoosh,iGPSPORT,行者,Rouvy'
+      ai_analysis:
+        description: '是否启用AI分析'
+        type: boolean
+        default: true
+
+jobs:
+  check-date:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: 检查是否为每月最后一天
+        id: check
+        run: |
+          # 获取当前日期
+          CURRENT_DAY=$(date +%d)
+          LAST_DAY_OF_MONTH=$(date -d "$(date -d '+1 month' -Y%Y -mm -01)+-1 day" +%d)
+          
+          echo "当前日期: $CURRENT_DAY"
+          echo "本月最后一天: $LAST_DAY_OF_MONTH"
+          
+          if [ "$CURRENT_DAY" = "$LAST_DAY_OF_MONTH" ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+          fi
+
+  generate-report:
+    needs: check-date
+    if: needs.check-date.outputs.should_run == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: 安装依赖
+        run: |
+          pip install -r requirements.txt
+      
+      - name: 确定目标月份
+        id: date
+        run: |
+          if [ -n "${{ github.event.inputs.month }}" ]; then
+            echo "month=${{ github.event.inputs.month }}" >> $GITHUB_OUTPUT
+          else
+            echo "month=$(date +'%Y-%m')" >> $GITHUB_OUTPUT
+          fi
+          echo "day=$(date +'%d')" >> $GITHUB_OUTPUT
+      
+      - name: 执行报告生成
+        run: |
+          python scripts/generate_report.py \
+            --month "${{ steps.date.outputs.month }}" \
+            --competitors "${{ github.event.inputs.competitors }}" \
+            --ai-analysis ${{ github.event.inputs.ai_analysis }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      
+      - name: 转换 Markdown 为 PDF
+        uses: relaxedtomato/md-to-pdf@v1
+        with:
+          input_path: ./reports/
+          output_path: ./reports/pdf/
+      
+      - name: 提交报告
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit-message: "docs: 自动生成 ${{ steps.date.outputs.month }} 月竞品分析报告"
+          file_pattern: "reports/**"
+      
+      - name: 生成触发页面
+        run: |
+          python scripts/generate_trigger_page.py
+      
+      - name: 部署到 GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+      
+      - name: 发送完成通知
+        if: always()
+        run: |
+          python scripts/notify.py --status "${{ job.status }}" --month "${{ steps.date.outputs.month }}"
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

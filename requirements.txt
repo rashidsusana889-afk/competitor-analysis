@@ -1,0 +1,27 @@
+# 竞品分析报告项目依赖
+
+# 核心依赖
+aiohttp>=3.9.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# AI 分析
+openai>=1.6.0
+
+# HTTP 请求 (用于通知)
+requests>=2.31.0
+
+# PDF 生成
+markdown>=3.5.0
+markdown-pdf>=1.1.0
+weasyprint>=60.0
+pdfkit>=1.0.0
+
+# 数据处理
+python-dateutil>=2.8.0
+
+# 开发依赖
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+ruff>=0.1.0
