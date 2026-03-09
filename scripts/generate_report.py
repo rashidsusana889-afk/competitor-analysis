@@ -85,12 +85,16 @@ def main():
         # 3. AI 智能分析 (可选)
         if ai_enabled:
             print("\n🤖 步骤2: 进行AI智能分析...")
-            if os.environ.get('OPENAI_API_KEY'):
+            # 检查是否配置了 AI 服务商
+            has_openai = bool(os.environ.get('OPENAI_API_KEY'))
+            has_minimax = bool(os.environ.get('MINIMAX_API_KEY') and os.environ.get('MINIMAX_GROUP_ID'))
+            
+            if has_openai or has_minimax:
                 analyzer = AIAnalyzer()
                 analyzed_data = analyzer.analyze(raw_data, competitors)
                 print("   ✅ AI分析完成")
             else:
-                print("   ⚠️  未配置 OPENAI_API_KEY，跳过AI分析")
+                print("   ⚠️  未配置 AI 服务商 (MINIMAX 或 OPENAI)，跳过AI分析")
                 analyzed_data = raw_data
         else:
             print("\n⏭️  步骤2: AI分析已禁用")
