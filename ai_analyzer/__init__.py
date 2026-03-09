@@ -159,10 +159,13 @@ class AIAnalyzer:
         }
         
         print(f"🔄 正在调用 MiniMax API (模型: {self.model})...")
+        print(f"📡 API URL: {url}")
+        print(f"📝 请求内容长度: {len(prompt)} 字符")
         
         try:
             response = requests.post(url, headers=headers, json=payload, timeout=60)
             print(f"📡 API 响应状态: {response.status_code}")
+            print(f"📄 响应内容: {response.text[:500]}")
         except requests.exceptions.Timeout:
             print("⚠️  MiniMax API 请求超时")
             return data
