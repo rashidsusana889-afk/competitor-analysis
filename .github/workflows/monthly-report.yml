@@ -85,11 +85,9 @@ jobs:
           MINIMAX_GROUP_ID: ${{ secrets.MINIMAX_GROUP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       
-      - name: 转换 Markdown 为 PDF
-        uses: relaxedtomato/md-to-pdf@v1
-        with:
-          input_path: ./reports/
-          output_path: ./reports/pdf/
+      # - name: 转换 Markdown 为 PDF
+      #   由于 PDF 转换需要额外依赖，暂时跳过
+      #   报告将以 Markdown 格式提供
       
       - name: 提交报告
         uses: stefanzweifel/git-auto-commit-action@v5
