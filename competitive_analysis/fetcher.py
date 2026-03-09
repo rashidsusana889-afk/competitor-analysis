@@ -114,32 +114,44 @@ class DataFetcher:
         return versions
     
     async def _search_app_version(self, competitor: str) -> List[Dict]:
-        """通过搜索获取版本信息"""
+        """通过搜索获取版本信息和日期"""
         import requests
         
         versions = []
         
-        # 使用 App Store 搜索 API 获取版本
-        search_url = f"https://itunes.apple.com/search?term={competitor}&entity=software&limit=1"
+        # 使用 App Store 搜索 API 获取版本和发布日期
+        search_url = f"https://itunes.apple.com/search?term={competitor}&entity=software&limit=10"
         
         try:
             response = requests.get(search_url, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                if data.get('results'):
-                    result = data['results'][0]
+                for result in data.get('results', [])[:3]:
+                    version = result.get('version', '未知')
+                    release_date = result.get('currentVersionReleaseDate', '')
+                    
+                    # 格式化日期
+                    if release_date:
+                        try:
+                            from datetime import datetime
+                            date_obj = datetime.strptime(release_date[:10], '%Y-%m-%d')
+                            release_date = date_obj.strftime('%Y-%m-%d')
+                        except:
+                            release_date = release_date[:10]
+                    else:
+                        release_date = "未知"
+                    
                     versions.append({
-                        "platform": "iOS (Search)",
+                        "platform": "iOS",
                         "url": result.get('trackViewUrl', ''),
-                        "version": result.get('version', '未知'),
-                        "update_date": "未知",
+                        "version": version,
+                        "update_date": release_date,
                         "update_content": []
                     })
         except Exception as e:
             print(f"   ⚠️  搜索版本失败: {e}")
         
-        return versions
-        
+        # 同时搜索 Google Play 获取版本
         return versions
     
     async def _fetch_single_url(self, url: str, platform: str) -> Optional[Dict]:
@@ -224,67 +236,81 @@ class DataFetcher:
         news_items = await self._search_news(competitor, year, month)
         news_list.extend(news_items)
         
-        # 尝试访问官网
-        official_url = self.OFFICIAL_WEBSITES.get(competitor)
-        if official_url:
-            try:
-                website_news = await self._fetch_website_news(official_url, competitor)
-                news_list.extend(website_news)
-            except Exception as e:
-                print(f"   ⚠️  获取官网新闻失败: {e}")
+        # 去重并按日期排序
+        seen = set()
+        unique_news = []
+        for news in news_list:
+            key = news.get('title', '')[:30]  # 基于标题去重
+            if key not in seen:
+                seen.add(key)
+                unique_news.append(news)
         
-        return news_list[:10]  # 限制返回数量
+        return unique_news[:15]  # 限制返回数量
     
     async def _search_news(self, competitor: str, year: int, month: int) -> List[Dict]:
         """搜索新闻 - 使用 DuckDuckGo HTML 搜索"""
         import requests
+        import re
         
         news_list = []
-        month_names = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+        month_str = f"{year}-{month:02d}"
         
-        # 搜索关键词
+        # 搜索关键词 - 更精确的搜索
         keywords = [
-            f"{competitor} 2026年 更新",
-            f"{competitor} App 新功能",
-            f"{competitor} 运动 2026"
+            f"{competitor} App {year}年{month:02d}月 更新",
+            f"{competitor} {year}年{month}月 新功能 发布",
+            f"{competitor} fitness app {month} 2026 update"
         ]
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
-        for keyword in keywords[:2]:  # 限制搜索次数
+        for keyword in keywords[:2]:
             try:
                 url = "https://html.duckduckgo.com/html/"
                 data = {"q": keyword, "b": ""}
                 
-                response = requests.post(url, data=data, headers=headers, timeout=10)
+                response = requests.post(url, data=data, headers=headers, timeout=15)
                 if response.status_code == 200:
                     html = response.text
                     soup = BeautifulSoup(html, 'html.parser')
                     
                     # 解析搜索结果
-                    for result in soup.find_all('a', class_='result__a')[:5]:
+                    for result in soup.find_all('a', class_='result__a')[:8]:
                         title = result.get_text(strip=True)
-                        if title and len(title) > 5:
-                            # 获取描述
-                            parent = result.find_parent('div', class_='result__body')
+                        if title and len(title) > 8:
+                            # 尝试从标题中提取日期
+                            date_str = month_str  # 默认使用目标月份
                             desc = ""
+                            
+                            # 查找父元素中的日期
+                            parent = result.find_parent('div', class_='result__body')
                             if parent:
+                                # 查找日期元素
+                                date_elem = parent.find('span', class_='result__date')
+                                if date_elem:
+                                    date_text = date_elem.get_text(strip=True)
+                                    # 解析日期
+                                    date_match = re.search(r'(\d{1,2})\s*(月|/|-)\s*(\d{1,2})', date_text)
+                                    if date_match:
+                                        date_str = f"{year}-{int(date_match.group(1)):02d}-{int(date_match.group(3)):02d}"
+                                
+                                # 获取描述
                                 desc_elem = parent.find('a', class_='result__snippet')
                                 if desc_elem:
                                     desc = desc_elem.get_text(strip=True)
                             
                             news_list.append({
-                                "title": title,
-                                "description": desc,
-                                "date": f"{year}-{month_names[month-1]}",
+                                "title": title[:100],  # 限制标题长度
+                                "description": desc[:200] if desc else "",
+                                "date": date_str,
                                 "source": competitor
                             })
             except Exception as e:
-                print(f"   ⚠️  搜索失败: {keyword}")
+                print(f"   ⚠️ 搜索失败: {keyword[:20]}...")
         
-        return news_list[:10]
+        return news_list
     
     async def _fetch_website_news(self, url: str, competitor: str) -> List[Dict]:
         """从官网抓取新闻"""
