@@ -81,6 +81,8 @@ jobs:
             --competitors "${{ github.event.inputs.competitors }}" \
             --ai-analysis ${{ github.event.inputs.ai_analysis }}
         env:
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+          MINIMAX_GROUP_ID: ${{ secrets.MINIMAX_GROUP_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       
       - name: 转换 Markdown 为 PDF
