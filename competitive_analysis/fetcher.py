@@ -236,11 +236,55 @@ class DataFetcher:
         return news_list[:10]  # 限制返回数量
     
     async def _search_news(self, competitor: str, year: int, month: int) -> List[Dict]:
-        """搜索新闻"""
-        # 这里可以使用搜索引擎 API 或网页搜索
-        # 由于无法直接访问搜索引擎，返回空列表
-        # 实际使用时可以集成 SerpAPI、Bing Search API 等
-        return []
+        """搜索新闻 - 使用 DuckDuckGo HTML 搜索"""
+        import requests
+        
+        news_list = []
+        month_names = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+        
+        # 搜索关键词
+        keywords = [
+            f"{competitor} 2026年 更新",
+            f"{competitor} App 新功能",
+            f"{competitor} 运动 2026"
+        ]
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        for keyword in keywords[:2]:  # 限制搜索次数
+            try:
+                url = "https://html.duckduckgo.com/html/"
+                data = {"q": keyword, "b": ""}
+                
+                response = requests.post(url, data=data, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    html = response.text
+                    soup = BeautifulSoup(html, 'html.parser')
+                    
+                    # 解析搜索结果
+                    for result in soup.find_all('a', class_='result__a')[:5]:
+                        title = result.get_text(strip=True)
+                        if title and len(title) > 5:
+                            # 获取描述
+                            parent = result.find_parent('div', class_='result__body')
+                            desc = ""
+                            if parent:
+                                desc_elem = parent.find('a', class_='result__snippet')
+                                if desc_elem:
+                                    desc = desc_elem.get_text(strip=True)
+                            
+                            news_list.append({
+                                "title": title,
+                                "description": desc,
+                                "date": f"{year}-{month_names[month-1]}",
+                                "source": competitor
+                            })
+            except Exception as e:
+                print(f"   ⚠️  搜索失败: {keyword}")
+        
+        return news_list[:10]
     
     async def _fetch_website_news(self, url: str, competitor: str) -> List[Dict]:
         """从官网抓取新闻"""
