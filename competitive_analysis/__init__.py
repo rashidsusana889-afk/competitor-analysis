@@ -175,11 +175,7 @@ class CompetitorReportGenerator:
         competitors = data.get('competitors', {})
         
         # 构建报告内容
-        report = f"""# {year}年{month_str}月运动类App竞品更新分析报告
-
-## 引言
-
-本报告旨在，对 {', '.join(self.competitors)} 等主流运动类 App 在 {year} 年 {month} 月 1 日至 {month} 月 28 日期间的公开更新记录进行梳理，分析 {year} 年 {month} 月运动类 App 的更新动态。
+        report = f"""# {year}年{month_str}月竞品动态汇总报告
 
 ---
 
@@ -191,10 +187,6 @@ class CompetitorReportGenerator:
             report += self._generate_competitor_section(
                 i, competitor, competitor_data
             )
-        
-        # 添加 AI 分析洞察 (如果有)
-        if 'ai_insights' in data:
-            report += self._generate_ai_section(data)
         
         # 添加总结
         report += self._generate_summary_section(data)
@@ -239,23 +231,52 @@ class CompetitorReportGenerator:
         # 格式化动态信息
         news_text = ""
         if company_news:
-            for news in company_news[:5]:
+            for news in company_news[:8]:
                 title = news.get('title', '')
                 date = news.get('date', '')
-                if title:
-                    news_text += f"* {title} ({date})\n"
+                if title and date:
+                    news_text += f"* {date}：{title}\n"
+                elif title:
+                    news_text += f"* {title}\n"
         else:
-            news_text = "* 暂无动态信息"
+            news_text = "无"
         
-        section = f"""## {index}. {competitor}
+        # 格式化版本信息
+        version_text = ""
+        if versions:
+            for v in versions:
+                platform = v.get('platform', 'iOS')
+                version = v.get('version', '未知')
+                update_date = v.get('update_date', '')
+                update_content = v.get('update_content', [])
+                
+                if update_date and update_date != '未知':
+                    version_text += f"* {version}（{update_date}）：\n"
+                else:
+                    version_text += f"* {version}：\n"
+                
+                if update_content:
+                    for content in update_content[:5]:
+                        version_text += f"    * {content}\n"
+        else:
+            version_text = "无"
+        
+        # 生成高亮总结
+        highlights = data.get('highlights', '暂无更新信息')
+        
+        section = f"""## 软件名称：{competitor}
 
 **更新概况**：{highlights}
 
-**主要版本**：
+**主要新功能**：
+
+* （根据版本更新内容提取）
+
+**主要版本及内容**：
 
 {version_text}
 
-**公司动态**：
+**相关动态**：
 
 {news_text}
 
