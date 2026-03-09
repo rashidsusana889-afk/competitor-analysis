@@ -261,6 +261,12 @@
             
             <form id="triggerForm">
                 <div class="form-group">
+                    <label for="githubToken">GitHub Token</label>
+                    <input type="password" id="githubToken" name="githubToken" required placeholder="ghp_xxxxxxxxxxxx">
+                    <p class="hint">需要在 GitHub Settings > Developer settings > Personal access tokens 生成</p>
+                </div>
+                
+                <div class="form-group">
                     <label for="month">目标月份</label>
                     <input type="month" id="month" name="month" required>
                     <p class="hint">选择需要生成报告的月份</p>
@@ -318,6 +324,12 @@
             const month = document.getElementById('month').value;
             const competitors = document.getElementById('competitors').value;
             const aiAnalysis = document.getElementById('aiAnalysis').checked;
+            const githubToken = document.getElementById('githubToken').value;
+            
+            if (!githubToken) {
+                alert('请输入 GitHub Token');
+                return;
+            }
             
             // 显示加载状态
             btn.classList.add('loading');
@@ -325,9 +337,8 @@
             status.classList.remove('show');
             
             // GitHub 配置
-            const GITHUB_OWNER = 'your-username';  // 替换为你的 GitHub 用户名
-            const GITHUB_REPO = 'your-repo';    // 替换为你的仓库名
-            const GITHUB_TOKEN = 'YOUR_GITHUB_TOKEN';   // 替换为你的 GitHub Token
+            const GITHUB_OWNER = 'rashidsusana889-afk';
+            const GITHUB_REPO = 'competitor-analysis';
             
             try {
                 const response = await fetch(
@@ -335,7 +346,7 @@
                     {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                            'Authorization': `Bearer ${githubToken}`,
                             'Accept': 'application/vnd.github+json',
                             'Content-Type': 'application/json'
                         },
