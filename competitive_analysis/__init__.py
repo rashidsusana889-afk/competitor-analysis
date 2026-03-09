@@ -97,23 +97,36 @@ class CompetitorReportGenerator:
     ) -> Optional[Dict]:
         """
         获取单个竞品的更新信息
-        
-        此处为简化实现，实际使用时可以通过:
-        1. 搜索引擎 API (如 Exa, SerpAPI)
-        2. 应用商店 API
-        3. 官方网站爬虫
-        获取更详细的信息
+        尝试从应用商店和网页抓取真实数据
         """
         queries = self.COMPETITOR_QUERIES.get(competitor, [f"{competitor} 更新"])
         
-        # 简化的数据结构
-        # 实际实现中应该调用搜索 API 获取真实数据
+        # 尝试抓取真实数据
+        versions = []
+        company_news = []
+        
+        try:
+            from competitive_analysis.fetcher import fetch_competitor_data_sync
+            data = fetch_competitor_data_sync(competitor, year, month)
+            versions = data.get("versions", [])
+            company_news = data.get("news", [])
+            print(f"   ✅ 获取到 {len(versions)} 个版本信息, {len(company_news)} 条动态")
+        except Exception as e:
+            print(f"   ⚠️  数据抓取失败: {e}")
+        
+        # 如果没有抓取到数据，使用默认内容
+        if not versions:
+            versions = []
+        
+        if not company_news:
+            company_news = []
+        
         competitor_info = {
             "name": competitor,
             "queries_used": queries,
             "highlights": self._get_default_highlights(competitor),
-            "versions": [],
-            "company_news": []
+            "versions": versions,
+            "company_news": company_news
         }
         
         return competitor_info
@@ -209,21 +222,42 @@ class CompetitorReportGenerator:
         versions = data.get('versions', [])
         company_news = data.get('company_news', [])
         
+        # 格式化版本信息
+        version_text = ""
+        if versions:
+            version_text = "\n".join([
+                f"* {v.get('platform', '未知平台')}: 版本 {v.get('version', '未知')} (更新于 {v.get('update_date', '未知')})"
+                for v in versions
+            ])
+            if versions and versions[0].get('update_content'):
+                version_text += "\n\n**更新内容：**\n"
+                for content in versions[0].get('update_content', [])[:3]:
+                    version_text += f"* {content}\n"
+        else:
+            version_text = "* 暂无版本信息"
+        
+        # 格式化动态信息
+        news_text = ""
+        if company_news:
+            for news in company_news[:5]:
+                title = news.get('title', '')
+                date = news.get('date', '')
+                if title:
+                    news_text += f"* {title} ({date})\n"
+        else:
+            news_text = "* 暂无动态信息"
+        
         section = f"""## {index}. {competitor}
 
 **更新概况**：{highlights}
 
-**主要功能**：
+**主要版本**：
 
-* 功能更新内容待补充
+{version_text}
 
-**主要版本**
+**公司动态**：
 
-* 版本信息待补充
-
-**公司动态**
-
-* 公司动态待补充
+{news_text}
 
 """
         
