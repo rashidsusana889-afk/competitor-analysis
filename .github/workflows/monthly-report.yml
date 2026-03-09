@@ -96,7 +96,7 @@ jobs:
       - name: 提交报告
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit-message: "docs: 自动生成 ${{ steps.date.outputs.month }} 月竞品分析报告"
+          commit_message: "docs: 自动生成 ${{ steps.date.outputs.month }} 月竞品分析报告"
           file_pattern: "reports/**"
       
       - name: 生成触发页面
