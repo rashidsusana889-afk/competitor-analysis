@@ -88,7 +88,11 @@ jobs:
       # - name: 转换 Markdown 为 PDF
       #   由于 PDF 转换需要额外依赖，暂时跳过
       #   报告将以 Markdown 格式提供
-      
+       
+      - name: 转换报告格式
+        run: |
+          python scripts/convert_report.py
+       
       - name: 提交报告
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
