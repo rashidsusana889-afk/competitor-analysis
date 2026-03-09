@@ -74,7 +74,7 @@ class DataFetcher:
         }
     
     async def fetch_all(self, competitor: str, year: int, month: int) -> Dict:
-       品的所有数据 """获取竞"""
+        """获取竞品的所有数据"""
         tasks = [
             self.fetch_app_version(competitor),
             self.fetch_news(competitor, year, month)
@@ -98,10 +98,47 @@ class DataFetcher:
         for platform, url in urls.items():
             try:
                 version_info = await self._fetch_single_url(url, platform)
-                if version_info:
+                if version_info and version_info.get('version') and version_info.get('version') != '未知':
                     versions.append(version_info)
             except Exception as e:
                 print(f"   ⚠️  获取 {competitor} {platform} 版本失败: {e}")
+        
+        # 如果直接抓取失败，尝试搜索获取
+        if not versions:
+            try:
+                search_versions = await self._search_app_version(competitor)
+                versions.extend(search_versions)
+            except Exception as e:
+                print(f"   ⚠️  搜索版本失败: {e}")
+        
+        return versions
+    
+    async def _search_app_version(self, competitor: str) -> List[Dict]:
+        """通过搜索获取版本信息"""
+        import requests
+        
+        versions = []
+        
+        # 使用 App Store 搜索 API 获取版本
+        search_url = f"https://itunes.apple.com/search?term={competitor}&entity=software&limit=1"
+        
+        try:
+            response = requests.get(search_url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('results'):
+                    result = data['results'][0]
+                    versions.append({
+                        "platform": "iOS (Search)",
+                        "url": result.get('trackViewUrl', ''),
+                        "version": result.get('version', '未知'),
+                        "update_date": "未知",
+                        "update_content": []
+                    })
+        except Exception as e:
+            print(f"   ⚠️  搜索版本失败: {e}")
+        
+        return versions
         
         return versions
     
@@ -137,28 +174,45 @@ class DataFetcher:
         soup = BeautifulSoup(html, 'html.parser')
         
         if 'apps.apple.com' in url:
-            # App Store
-            version_elem = soup.find('p', class_='whats-new__latest__version')
+            # App Store - 尝试多种选择器
+            version_elem = (
+                soup.find('p', class_='whats-new__latest__version') or
+                soup.find('dd', class_='information-list__item__definition') or
+                soup.find(text=re.compile(r'版本|Version')) 
+            )
             if version_elem:
-                result["version"] = version_elem.get_text(strip=True)
+                if hasattr(version_elem, 'get_text'):
+                    result["version"] = version_elem.get_text(strip=True)
+                else:
+                    result["version"] = str(version_elem)
             
-            # 更新内容
+            # 更新内容 - 尝试多种选择器
             whats_new = soup.find('div', class_='whats-new__latest__content')
+            if not whats_new:
+                whats_new = soup.find('div', {'data-testid': 'whats-new'})
             if whats_new:
-                items = whats_new.find_all('p')
-                result["update_content"] = [item.get_text(strip=True) for item in items]
+                items = whats_new.find_all(['p', 'li'])
+                result["update_content"] = [item.get_text(strip=True) for item in items[:5]]
         
         elif 'play.google.com' in url:
             # Google Play
             version_elem = soup.find('span', itemprop='softwareVersion')
+            if not version_elem:
+                version_elem = soup.find(text=re.compile(r'当前版本|Current Version'))
             if version_elem:
-                result["version"] = version_elem.get_text(strip=True)
+                if hasattr(version_elem, 'get_text'):
+                    result["version"] = version_elem.get_text(strip=True)
+                else:
+                    result["version"] = str(version_elem)
             
             # 更新内容
             recent_changes = soup.find('div', itemprop='recentChanges')
+            if not recent_changes:
+                recent_changes = soup.find(text=re.compile(r'最近更新|Recent Changes'))
             if recent_changes:
-                items = recent_changes.find_all('p')
-                result["update_content"] = [item.get_text(strip=True) for item in items]
+                if hasattr(recent_changes, 'find_all'):
+                    items = recent_changes.find_all(['p', 'li'])
+                    result["update_content"] = [item.get_text(strip=True) for item in items[:5]]
         
         return result
     
