@@ -132,7 +132,11 @@ class AIAnalyzer:
     def _analyze_with_minimax(self, data: Dict, competitors: List[str]) -> Dict:
         """使用 MiniMax 进行分析"""
         
-        import requests
+        try:
+            import requests
+        except ImportError:
+            print("⚠️  未安装 requests 库")
+            return data
         
         prompt = self._build_analysis_prompt(data, competitors)
         
@@ -154,10 +158,21 @@ class AIAnalyzer:
             "top_p": 0.95
         }
         
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        print(f"🔄 正在调用 MiniMax API (模型: {self.model})...")
+        
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            print(f"📡 API 响应状态: {response.status_code}")
+        except requests.exceptions.Timeout:
+            print("⚠️  MiniMax API 请求超时")
+            return data
+        except requests.exceptions.RequestException as e:
+            print(f"⚠️  MiniMax API 请求失败: {str(e)}")
+            return data
         
         if response.status_code != 200:
-            print(f"⚠️  MiniMax API 错误: {response.status_code} - {response.text}")
+            print(f"⚠️  MiniMax API 错误: {response.status_code}")
+            print(f"   响应内容: {response.text[:500]}")
             return data
         
         result = response.json()
@@ -176,6 +191,7 @@ class AIAnalyzer:
                 "analysis_model": self.model
             }
         
+        print(f"⚠️  MiniMax API 返回格式异常: {result}")
         return data
     
     def _build_analysis_prompt(self, data: Dict, competitors: List[str]) -> str:
