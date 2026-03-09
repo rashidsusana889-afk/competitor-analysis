@@ -57,7 +57,7 @@ class AIAnalyzer:
             print("⚠️  未配置 MINIMAX_GROUP_ID")
             return
         
-        self.base_url = "https://api.minimax.chat/v1"
+        self.base_url = "https://api.minimax.io"
         self.model = "abab6.5s-chat"
     
     def analyze(
@@ -140,7 +140,11 @@ class AIAnalyzer:
         
         prompt = self._build_analysis_prompt(data, competitors)
         
-        url = f"{self.base_url}/text/chatcompletion_v2?GroupId={self.group_id}"
+        # 使用 OpenAI 兼容格式
+        url = f"{self.base_url}/v1/text/chatcompletion_v2"
+        
+        # 根据官方文档，GroupId 应该作为查询参数
+        params = {"GroupId": self.group_id}
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -154,16 +158,16 @@ class AIAnalyzer:
                 {"role": "user", "content": prompt}
             ],
             "tokens_to_generate": 2000,
-            "temperature": 0.7,
-            "top_p": 0.95
+            "temperature": 0.7
         }
         
         print(f"🔄 正在调用 MiniMax API (模型: {self.model})...")
         print(f"📡 API URL: {url}")
         print(f"📝 请求内容长度: {len(prompt)} 字符")
+        print(f"🔑 GroupId: {self.group_id[:10]}..." if self.group_id else "🔑 GroupId: 未设置")
         
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            response = requests.post(url, headers=headers, json=payload, params=params, timeout=60)
             print(f"📡 API 响应状态: {response.status_code}")
             print(f"📄 响应内容: {response.text[:500]}")
         except requests.exceptions.Timeout:
